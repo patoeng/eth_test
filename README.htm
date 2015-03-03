@@ -1,0 +1,210 @@
+<h2>Tuxgraphics ntp clock with build-in web interface, version 2.X</h2>
+<pre>
+
+See http://tuxgraphics.org/electronics/
+
+Copyright of most software and all diagrams: Guido Socher
+
+License for everything: GPL V2
+See http://www.gnu.org/licenses/gpl.html
+---------------------------------------------------------------------------
+
+ All parts needed to build this AVR ethernet solution can be ordered from 
+ http://shop.tuxgraphics.org/                                          
+
+!! READ THIS FIRST !!
+---------------------
+Edit the file main.c and change the mac address:
+Just increase MACSTEP for every new device:
+
+#ifndef MACSTEP
+#define MACSTEP 0x28
+#endif
+static uint8_t mymac[6] = {0x54,0x55,0x58,0x10,0x00,MACSTEP};
+
+For the first device you build you will not need to change the mymac line
+but for any subsequent board you will need to step the last digit in
+the mac address.
+
+The software use DHCP to get dynamically an IP addess from your
+DSL router. There is no need to configure manually anything.
+
+Check the file "Makefile" and adapt the "LOADCMD" variable at 
+the begining of the Makefile to be able to run "make load".
+
+You need an avr-gcc development environment in order to compile this.
+See http://tuxgraphics.org/electronics/200901/avr-gcc-linux.shtml
+
+To compile the final software use the command:
+make
+
+Note: windows users may use and modify the supplied winmake.bat to setup the
+environment correctly.
+
+The command
+make load
+
+will execute the avrdude command to load the main.hex software (NTP clock).
+
+<br>Note your programmer might interfere with the enc28j60!</b> For the avrusb500
+with 30cm cable you can normally leave the cable on. For all other programmers
+it is however saver to remove the programmer cable and power down/up the device.
+This is because the SPI interface is used for loading of the software and 
+communication to the enc28j60.
+
+To see a list of all possible build targets run the command:
+make help
+
+<b>
+Selecting the right clock source
+--------------------------------
+</b>
+Tuxgraphics hardware sold as of march 2007 is prepared to use the clock
+signal from the enc28j60. To use this you need to change the 
+low fuse byte once from 0x62 to 0x60:
+
+avrdude -p m328p -c stk500v2 -u -v -U lfuse:w:0x60:m
+
+or just type in your Linux shell:
+make fuse
+
+The fuse settings of the atmega328p are after programming:
+
+avrdude: AVR device initialized and ready to accept instructions
+avrdude: Device signature = 0x1e950f
+avrdude: safemode: lfuse reads as 60
+avrdude: safemode: hfuse reads as D9
+avrdude: safemode: efuse reads as 7
+
+Note that the efuse has some unused bits and the value depends
+on the chip revision of the atmega328p
+
+details of the lfuse bits:
+  CKDIV8 = 0
+  CKOUT  = 1
+  SUT1   = 1
+  SUT0   = 0
+  CKSEL3 = 0
+  CKSEL2 = 0
+  CKSEL1 = 0
+  CKSEL0 = 0
+
+If you are unsure what the current fuse setting are on the atmega
+then you can read the fuse settings with a command like:
+          avrdude -p m328p -c stk500v2 -v -q
+
+The result should be this (default factory settings for atmega328p, the
+efuse is dependent on the chip revision):
+          avrdude: safemode: lfuse reads as 62    -- 62 factory setting, change to 60
+          avrdude: safemode: hfuse reads as D9
+          avrdude: safemode: efuse reads as 7
+
+<b>
+Compiling on non-Unix systems
+-----------------------------
+</b>
+Please use the provided Makefile !!!
+
+It will also work under Windows.
+
+Take a look at the supplied winmake.bat and winload.bat file. This bat script
+might be needed to set the environment correctly.
+
+A description of what makefiles are and how they work can be found at:
+http://tuxgraphics.org/electronics/200912/makefiles.shtml
+
+
+<b>
+Using the NTP clock
+-------------------
+</b>
+Point your web browser to
+http://10.0.0.28   (or what ever IP address your router has given your hardware)
+The IP address is shown for 5 sec in the display during power-on.
+
+You should see a web page like this:
+
+        NTP clock
+
+        Date: Fri 2013-02-15
+        Time: 22:27:04   (GMT -4.0)
+        Status: OK
+
+
+        [config] [refresh]
+
+You can change the time offset to GMT in the config menu
+or via the push button on the board. All changes are stored
+in EEPROM and survive in case of temporary power failure.
+
+The default password for configuration changes via the web is: secret
+
+The LCD display has a link status and update status indicator
+on the right. The meaning of this character is:
+
+- nothing: ETH link ok, NTP time sync up-to date
+- '/': ETH link down
+- '|': ETH link up but ntp sever could not be reached yet. The clock
+   tries to sync every hour. Thus if you cut your internet connection
+   during the night then you will see this character. Note that the clock
+   will continue to run form the internal crystal.
+
+<b>
+Changing the configuration
+--------------------------
+</b>
+To change from summer to winter time you can use the push
+button or point your web browser to http://10.0.0.28/config
+(replace 10.0.0.28 by the address that your clock has. The
+value is shown in the LCD display during power-on)
+
+The default password (if you did not change is) is: secret
+
+You can rest any changes back to compile time default values in
+case you forgot what you changed.
+To go back to factory settings just push the button on the board
+and hold it while you power-cycle the board.
+
+There are locations on earth that have multiple of 15min, 30min
+or 1h offset to GMT. The push button steps the time in 1h hour intervals.
+More than 95% of all people on earth live in a time-zone that has
+an offset with  a multiple of 1h. To use any other offset just
+use a web browsers and configure the offset in the "[config]" menu.
+
+Revision history
+----------------
+2007-10-28: version 0.1 -- first public version
+
+2007-11-06: version 0.2 -- remove blocking loop at startup.
+                           Missing cast in gmtime function (thanks to Scott Parlane)
+                           Write link indicator in the first line. There is more space
+                           Allow multiple of 0.5 hours offset to utc
+
+2008-04-26: version 0.3 -- Codevision compatibility
+                           The new avrdude checks if you have a atmega88 or atmega168
+                           this needs to be reflected now in the Makefile. 
+                        -- Make password sting longer
+                        -- add a "continue button"
+
+2008-05-17: version 0.4 -- it was not possible to store time zones with negative 
+                           offset.
+2008-07-22: version 0.5 -- fault in time zones data on config page fixed
+2009-03-25: version 0.6 -- Updates for atmega328 
+2009-06-24: version 0.7 -- Display own MAC addr. in config page.
+2009-08-02: version 0.8 -- Update for string buffer overrun (change buf to 570)
+2010-01-31: version 0.9 -- Major re-write. Now using the new TCP/IP stack.
+2010-02-06: version 1.0 -- Make use of the arp refresh feature in the new stack
+2012-10-21: version 1.1 -- add options to show 24h/12h and time offset to UTC in display
+                        -- repeat messages immediately multiple times until 
+                           first time successful
+2013-02-15: version 2.0 -- major re-write. We use now DHCP to configure
+                           the clock automatically. Just plug it into your
+                           network.
+                        -- updated LCD code to make it work better with
+                           the most recent gcc.
+2013-04-30: version 2.1 -- NTP server changed to 17.171.4.15
+2013-10-07: version 2.2 -- fix string buffer overflow in mk_net_str(gStrbuf,mymac,6,':',16) as reported by Dan Brown
+2014-04-06: version 2.3 -- store offset to utc as a positive number to avoid sign problems
+                        -- minor typos in the circuit diagram fixed
+</pre>
+# vim:sw=8:ts=8:si:et
